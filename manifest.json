@@ -1,0 +1,17 @@
+{
+  "name": "Assistente Pessoal",
+  "short_name": "Assistente",
+  "description": "Demandas, gastos e compromissos sincronizados com o Google Sheets",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EDF1F6",
+  "theme_color": "#0F1E2E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
