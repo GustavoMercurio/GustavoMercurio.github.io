@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Assistente</title>
+<meta name="theme-color" content="#0F1E2E">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF1F6; --surface:#FFFFFF; --ink:#0F1E2E; --muted:#5B6A7A; --line:#D8DFE8;
+  --dem:#2F5BEA; --gas:#12855D; --age:#C9631F; --danger:#C23A3A;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#0B131C; --surface:#132030; --ink:#E6EDF5; --muted:#93A2B3; --line:#243447;
+        --dem:#8BA6FF; --gas:#4CC79A; --age:#F0995A; --danger:#F07878;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
+body{padding:env(safe-area-inset-top) 0 0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--dem);outline-offset:2px}
+[hidden]{display:none!important}
+
+.app{max-width:640px;margin:0 auto;padding:0 18px calc(150px + env(safe-area-inset-bottom))}
+
+/* Cabeçalho */
+.topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 0 14px}
+.topo h1{margin:0;font:700 30px/1.05 var(--display);letter-spacing:-.02em}
+.topo small{display:block;margin-top:6px;color:var(--muted);font-size:13px}
+.topo .acoes{display:flex;gap:6px}
+.icone-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.icone-btn svg{width:19px;height:19px}
+.girando svg{animation:gira 0.9s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* Anotação rápida */
+.rapido{background:var(--surface);border:2px solid var(--ink);border-radius:18px;padding:12px 12px 10px}
+.rapido .linha{display:flex;gap:10px;align-items:center}
+.rapido input{flex:1;min-width:0;border:0;background:transparent;font-size:18px;padding:8px 4px;outline:none}
+.rapido input::placeholder{color:var(--muted)}
+.rapido .enviar{width:44px;height:44px;border-radius:50%;border:0;background:var(--ink);color:var(--paper);display:grid;place-items:center;flex:none}
+.rapido .enviar svg{width:22px;height:22px}
+.rapido .enviar:disabled{opacity:.35}
+.previa{margin:6px 4px 2px;font-size:14px;color:var(--muted);min-height:20px}
+.previa b{color:var(--ink);font-weight:600}
+.previa .erro{color:var(--danger)}
+.tipos{display:flex;gap:6px;margin:8px 0 2px;flex-wrap:wrap}
+.tipo{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;color:var(--muted)}
+.tipo[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+/* Seções e listas */
+.secao{margin-top:28px}
+.secao h2{display:flex;align-items:center;gap:8px;margin:0 0 4px;font:700 19px/1.2 var(--display);letter-spacing:-.01em}
+.secao h2::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--cor,var(--ink))}
+.secao .sub{color:var(--muted);font-size:14px;margin:0 0 6px 18px}
+.lista{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .corpo{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0}
+.item .titulo{display:block;font-weight:600;overflow-wrap:anywhere}
+.item .meta{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.item .valor{font:600 16px var(--display);white-space:nowrap}
+.item.feito .titulo{text-decoration:line-through;color:var(--muted);font-weight:400}
+.atrasado{color:var(--danger)!important;font-weight:600}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--dem);background:transparent;flex:none;display:grid;place-items:center}
+.check svg{width:14px;height:14px;opacity:0}
+.feito .check{background:var(--dem)}
+.feito .check svg{opacity:1;color:var(--surface)}
+.hora{width:52px;flex:none;font:600 15px var(--display);color:var(--age)}
+.prio{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--muted)}
+.prio.Alta{background:var(--danger)} .prio.Média{background:var(--age)}
+
+.vazio{padding:14px 0;color:var(--muted);font-size:15px}
+.total{font:700 34px/1 var(--display);letter-spacing:-.02em;margin:8px 0 2px}
+.barras{margin:14px 0 4px;display:grid;gap:10px}
+.barra .rot{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px}
+.barra .trilho{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.barra .trilho i{display:block;height:100%;background:var(--gas);border-radius:4px}
+.mes{display:flex;align-items:center;gap:10px;margin-top:20px}
+.mes strong{font:700 20px var(--display);flex:1;text-transform:capitalize}
+.filtros{display:flex;gap:6px;margin:20px 0 4px}
+.filtro{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font-size:14px}
+.filtro[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.dia{margin:22px 0 2px;font:700 15px var(--display);color:var(--muted)}
+.link{background:none;border:0;padding:0;color:var(--dem);font-weight:600;text-decoration:underline}
+
+/* Navegação */
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav button{background:none;border:0;padding:10px 0 9px;display:grid;justify-items:center;gap:3px;font-size:12px;color:var(--muted)}
+nav svg{width:23px;height:23px}
+nav button[aria-current="page"]{color:var(--cor);font-weight:600}
+.fab{position:fixed;right:max(18px,calc(50% - 302px));bottom:calc(76px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--ink);color:var(--paper);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.22);z-index:4}
+.fab svg{width:26px;height:26px}
+
+/* Folha de formulário */
+.fundo{position:fixed;inset:0;background:rgba(8,14,22,.5);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.folha{background:var(--surface);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));animation:sobe .22s ease-out}
+@keyframes sobe{from{transform:translateY(40px);opacity:0}}
+.folha h3{margin:0 0 14px;font:700 22px var(--display)}
+.campo{display:block;margin-bottom:14px}
+.campo span{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+.campo input,.campo select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:17px;min-height:48px}
+.botoes{display:flex;gap:10px;margin-top:8px}
+.btn{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:transparent;font-weight:600}
+.btn.principal{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.perigo{color:var(--danger);flex:0 0 auto;padding:0 16px}
+.btn:disabled{opacity:.5}
+
+/* Aviso */
+.aviso{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw;text-align:center}
+.aviso.erro{background:var(--danger);color:#fff}
+
+/* Configuração */
+.config{padding-top:8vh}
+.config h1{font:700 34px/1.05 var(--display);letter-spacing:-.02em;margin:0 0 10px}
+.config p{color:var(--muted);margin:0 0 22px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="camada"></div>
+<div id="aviso" class="aviso" hidden></div>
+
+<script>
+/* ============ Utilidades ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const guarda = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k, v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const pad = n => String(n).padStart(2, '0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hojeISO = () => iso(new Date());
+const daISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const somaDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const brl = v => Number(v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const maiuscula = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+function rotuloData(s){
+  if (!s) return '';
+  const h = hojeISO();
+  if (s === h) return 'hoje';
+  if (s === iso(somaDias(new Date(), 1))) return 'amanhã';
+  if (s === iso(somaDias(new Date(), -1))) return 'ontem';
+  return daISO(s).toLocaleDateString('pt-BR', {weekday:'short', day:'numeric', month:'short'}).replace('.', '').replace('.', '');
+}
+function paraNumero(t){
+  t = String(t).trim().replace(/[^\d.,]/g, '');
+  if (!t) return NaN;
+  if (t.includes(',')) return parseFloat(t.replace(/\./g, '').replace(',', '.'));
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return parseFloat(t.replace(/\./g, ''));
+  return parseFloat(t);
+}
+
+/* ============ Estado ============ */
+const CATEGORIAS = ['Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Compras','Outros'];
+const PAGAMENTOS = ['', 'Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro'];
+const LEMBRETES = [['0','Sem lembrete'],['10','10 min antes'],['30','30 min antes'],['60','1 hora antes'],['1440','1 dia antes']];
+
+const SCHEMA = {
+  demandas: { nome:'Demanda', campos:[
+    {k:'titulo', l:'O que precisa ser feito', t:'text', obrig:true},
+    {k:'prazo', l:'Prazo', t:'date'},
+    {k:'prioridade', l:'Prioridade', t:'select', op:['Baixa','Média','Alta'], pad:'Média'} ]},
+  gastos: { nome:'Gasto', campos:[
+    {k:'descricao', l:'Descrição', t:'text', obrig:true},
+    {k:'valor', l:'Valor (R$)', t:'num', obrig:true},
+    {k:'categoria', l:'Categoria', t:'select', op:CATEGORIAS, pad:'Outros'},
+    {k:'data', l:'Data', t:'date', pad:'hoje', obrig:true},
+    {k:'pagamento', l:'Forma de pagamento', t:'select', op:PAGAMENTOS} ]},
+  compromissos: { nome:'Compromisso', campos:[
+    {k:'titulo', l:'Compromisso', t:'text', obrig:true},
+    {k:'data', l:'Data', t:'date', pad:'hoje', obrig:true},
+    {k:'hora', l:'Hora', t:'time'},
+    {k:'local', l:'Local', t:'text'},
+    {k:'lembrete_min', l:'Lembrete', t:'select', op:LEMBRETES, pad:'30'} ]}
+};
+const NAV = [
+  {id:'hoje', rot:'Hoje', cor:'var(--ink)', ic:'<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>'},
+  {id:'demandas', rot:'Demandas', cor:'var(--dem)', ic:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'},
+  {id:'gastos', rot:'Gastos', cor:'var(--gas)', ic:'<path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>'},
+  {id:'compromissos', rot:'Agenda', cor:'var(--age)', ic:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'}
+];
+const svg = (p, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${p}</svg>`;
+
+let cfg = { url: guarda.get('url') || '', senha: guarda.get('senha') || '' };
+let dados = { demandas:[], gastos:[], compromissos:[] };
+try { dados = JSON.parse(guarda.get('cache')) || dados; } catch(e){}
+let tela = 'hoje';
+let mes = hojeISO().slice(0, 7);
+let filtroDem = 'pendentes';
+let filtroAge = 'proximos';
+let ocupado = false;
+let statusSync = '';
+let rascunho = '', tipoForcado = '';
+
+/* ============ Comunicação com a planilha ============ */
+async function chamar(opts){
+  let r;
+  try { r = await fetch(opts.url, opts.init); }
+  catch(e){ throw new Error('Sem conexão. Tente de novo em instantes.'); }
+  let j;
+  try { j = await r.json(); }
+  catch(e){ throw new Error('Resposta inválida. Confira o endereço da API nos ajustes.'); }
+  if (!j.ok) throw new Error(j.erro || 'Erro desconhecido');
+  return j.dados;
+}
+async function carregar(silencioso){
+  if (!cfg.url) return;
+  const btn = $('#btn-atualizar');
+  if (btn) btn.classList.add('girando');
+  try {
+    dados = await chamar({ url: `${cfg.url}?senha=${encodeURIComponent(cfg.senha)}` });
+    guarda.set('cache', JSON.stringify(dados));
+    statusSync = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  } catch(e){
+    statusSync = 'Sem sincronizar: mostrando a última cópia';
+    if (!silencioso) aviso(e.message, 'erro');
+  }
+  if (btn) btn.classList.remove('girando');
+  desenhar();
+}
+async function enviar(acao, tabela, item){
+  return chamar({ url: cfg.url, init: {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // evita bloqueio de CORS
+    body: JSON.stringify({ senha: cfg.senha, acao, aba: tabela, item })
+  }});
+}
+async function executar(acao, tabela, item, msgOk){
+  if (ocupado) return false;
+  ocupado = true; aviso('Salvando…', '', 0);
+  try {
+    dados = await enviar(acao, tabela, item);
+    guarda.set('cache', JSON.stringify(dados));
+    aviso(msgOk);
+    return true;
+  } catch(e){
+    aviso(e.message, 'erro', 4000);
+    return false;
+  } finally { ocupado = false; desenhar(); }
+}
+let timerAviso;
+function aviso(txt, tipo, ms = 2200){
+  const el = $('#aviso');
+  el.textContent = txt; el.className = 'aviso ' + (tipo || ''); el.hidden = false;
+  clearTimeout(timerAviso);
+  if (ms) timerAviso = setTimeout(() => el.hidden = true, ms);
+}
+
+/* ============ Interpretação do texto rápido ============ */
+const DIAS_SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+const CATEGORIA_PALAVRAS = {
+  'Alimentação': ['mercado','supermercado','padaria','almoco','jantar','lanche','restaurante','ifood','cafe','pizza','comida','acougue','feira','hamburguer'],
+  'Transporte': ['uber','99','gasolina','combustivel','onibus','estacionamento','pedagio','passagem','metro','taxi','oficina'],
+  'Moradia': ['aluguel','condominio','luz','energia','agua','internet','gas','reforma'],
+  'Saúde': ['farmacia','remedio','dentista','medico','exame','plano de saude','consulta','academia'],
+  'Lazer': ['cinema','bar','show','viagem','netflix','spotify','streaming','jogo','festa','passeio'],
+  'Educação': ['curso','livro','faculdade','escola','mensalidade'],
+  'Compras': ['roupa','sapato','loja','shopee','amazon','presente','mercado livre']
+};
+function cortar(orig, re){
+  const m = norm(orig).match(re);
+  if (!m) return orig;
+  return orig.slice(0, m.index) + ' ' + orig.slice(m.index + m[0].length);
+}
+function limpar(s){
+  return s.replace(/\s+/g, ' ').replace(/^[\s,.\-–:]+|[\s,.\-–:]+$/g, '')
+          .replace(/^(?:para|pra|de|do|da|em|no|na|as|às)\s+/i, '').replace(/\s+(?:para|pra|de|em|no|na|as|às|a|e)$/i, '').trim();
+}
+function acharData(txt){
+  const t = norm(txt); let m;
+  const hoje = new Date();
+  if ((m = t.match(/\bdepois de amanha\b/))) return { iso: iso(somaDias(hoje, 2)), re: m[0] };
+  if ((m = t.match(/\bamanha\b/)))           return { iso: iso(somaDias(hoje, 1)), re: m[0] };
+  if ((m = t.match(/\bontem\b/)))            return { iso: iso(somaDias(hoje, -1)), re: m[0] };
+  if ((m = t.match(/\bhoje\b/)))             return { iso: iso(hoje), re: m[0] };
+  if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
+    let ano = m[3] ? Number(m[3]) : hoje.getFullYear();
+    if (ano < 100) ano += 2000;
+    let d = new Date(ano, Number(m[2]) - 1, Number(m[1]));
+    if (!m[3] && d < somaDias(hoje, -1)) d = new Date(ano + 1, Number(m[2]) - 1, Number(m[1]));
+    return { iso: iso(d), re: m[0] };
+  }
+  if ((m = t.match(/\bdia (\d{1,2})\b/))) {
+    let d = new Date(hoje.getFullYear(), hoje.getMonth(), Number(m[1]));
+    if (d < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) d = new Date(hoje.getFullYear(), hoje.getMonth() + 1, Number(m[1]));
+    return { iso: iso(d), re: m[0] };
+  }
+  if ((m = t.match(/\b(?:(?:na|no|para|pra|ate|proxima|proximo)\s+)*(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:-feira)?\b/))) {
+    const alvo = DIAS_SEMANA.indexOf(m[1]);
+    const dif = ((alvo - hoje.getDay()) + 7) % 7 || 7;
+    return { iso: iso(somaDias(hoje, dif)), re: m[0] };
+  }
+  return null;
+}
+function acharHora(txt){
+  const t = norm(txt); let m;
+  if ((m = t.match(/\b(?:as\s+)?(\d{1,2}):(\d{2})\b/)))               return { hora:`${pad(m[1])}:${m[2]}`, re: m[0] };
+  if ((m = t.match(/\b(?:as\s+)?(\d{1,2})h(\d{2})?\b/)))              return { hora:`${pad(m[1])}:${m[2]||'00'}`, re: m[0] };
+  if ((m = t.match(/\bas\s+(\d{1,2})(?:\s*horas?)?\b/)))              return { hora:`${pad(m[1])}:00`, re: m[0] };
+  return null;
+}
+function acharValor(txt){
+  const t = norm(txt); let m;
+  const num = '(\\d{1,3}(?:\\.\\d{3})+(?:,\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)';
+  if ((m = t.match(new RegExp('\\br\\$\\s*' + num)))) return { valor: paraNumero(m[1]), re: m[0] };
+  if ((m = t.match(new RegExp('\\b(?:gastei|paguei|comprei|gasto|despesa|pix de|pix)\\s+(?:de\\s+|uns\\s+)?(?:r\\$\\s*)?' + num + '(?:\\s*(?:reais|real|conto|pila))?')))) return { valor: paraNumero(m[1]), re: m[0] };
+  if ((m = t.match(new RegExp('\\b' + num + '\\s*(?:reais|real|conto|pila)\\b')))) return { valor: paraNumero(m[1]), re: m[0] };
+  return null;
+}
+function acharCategoria(txt){
+  const t = ' ' + norm(txt) + ' ';
+  for (const [cat, palavras] of Object.entries(CATEGORIA_PALAVRAS))
+    if (palavras.some(p => new RegExp('\\b' + p + '\\b').test(t))) return cat;
+  return 'Outros';
+}
+function acharPagamento(txt){
+  const t = norm(txt);
+  if (/\bpix\b/.test(t)) return 'Pix';
+  if (/\bcredito\b/.test(t)) return 'Cartão de crédito';
+  if (/\bdebito\b/.test(t)) return 'Cartão de débito';
+  if (/\b(dinheiro|especie)\b/.test(t)) return 'Dinheiro';
+  return '';
+}
+
+function interpretar(entrada, forcar){
+  let txt = entrada.trim();
+  if (!txt) return null;
+  const pref = txt.match(/^(demanda|tarefa|gasto|compromisso)\s*:\s*/i);
+  if (pref) {
+    forcar = forcar || ({demanda:'demandas', tarefa:'demandas', gasto:'gastos', compromisso:'compromissos'})[pref[1].toLowerCase()];
+    txt = txt.slice(pref[0].length);
+  }
+  const data = acharData(txt);
+  const hora = acharHora(txt);
+  let valor = acharValor(txt);
+  if (!valor && forcar === 'gastos') {                      // "gasto: 30 farmácia" (número solto)
+    const base = data ? cortar(txt, new RegExp(data.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))) : txt;
+    const m = norm(base).match(/\b(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\b/);
+    if (m) valor = { valor: paraNumero(m[1]), re: m[0] };
+  }
+  const t = norm(txt);
+  const ehGasto = !!valor && (/\b(gastei|paguei|comprei|gasto|despesa|pix)\b/.test(t) || /\br\$/.test(t) || /\b(reais|real|conto|pila)\b/.test(t)) && !(hora && !/\b(gastei|paguei|comprei|gasto|despesa)\b/.test(t));
+  const ehCompromisso = !!hora || /\b(reuniao|consulta|dentista|medico|encontro|compromisso|aniversario|call|entrevista|exame|audiencia|voo|show)\b/.test(t);
+  const tipo = forcar || (ehGasto ? 'gastos' : ehCompromisso ? 'compromissos' : 'demandas');
+
+  let resto = txt;
+  if (tipo === 'gastos') {
+    if (!valor) return { tipo, erro: 'Não encontrei o valor. Ex.: gastei 45 no mercado' };
+    [valor, data].forEach(x => { if (x) resto = cortar(resto, new RegExp(x.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); });
+    resto = resto.replace(/\b(gastei|paguei|comprei|gasto)\b/ig, ' ');
+    resto = cortar(resto, /\b(?:(?:no|na|com|via|em)\s+)?(?:cartao\s+(?:de\s+)?)?(pix|dinheiro|especie|credito|debito|cartao)\b/);
+    const categoria = acharCategoria(txt);
+    const descricao = limpar(resto) || categoria;
+    const item = { descricao: maiuscula(descricao), valor: valor.valor, categoria, data: data ? data.iso : hojeISO(), pagamento: acharPagamento(txt) };
+    return { tipo, item, resumo: `<b>Gasto</b> · ${brl(item.valor)} · ${esc(item.categoria)} · ${rotuloData(item.data)}` };
+  }
+  [data, hora].forEach(x => { if (x) resto = cortar(resto, new RegExp(x.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); });
+  if (tipo === 'compromissos') {
+    const titulo = limpar(resto) || 'Compromisso';
+    const item = { titulo: maiuscula(titulo), data: data ? data.iso : hojeISO(), hora: hora ? hora.hora : '', local: '', lembrete_min: '30' };
+    return { tipo, item, resumo: `<b>Compromisso</b> · ${rotuloData(item.data)}${item.hora ? ' às ' + item.hora : ''}` };
+  }
+  const prioridade = /\b(urgente|importante|prioridade)\b/.test(t) ? 'Alta' : 'Média';
+  const titulo = limpar(resto.replace(/\b(urgente)\b/ig, ' ')) || limpar(resto) || 'Nova demanda';
+  const item = { titulo: maiuscula(titulo), prazo: data ? data.iso : '', prioridade };
+  return { tipo, item, resumo: `<b>Demanda</b> · prioridade ${prioridade.toLowerCase()}${item.prazo ? ' · prazo ' + rotuloData(item.prazo) : ''}` };
+}
+
+/* ============ Desenho das telas ============ */
+function cabecalho(){
+  const hoje = new Date();
+  const titulo = hoje.toLocaleDateString('pt-BR', {weekday:'long'});
+  const sub = hoje.toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
+  return `<header class="topo">
+    <div><h1>${maiuscula(titulo)}</h1><small>${sub} · ${esc(statusSync || 'Toque em atualizar para sincronizar')}</small></div>
+    <div class="acoes">
+      <button class="icone-btn" id="btn-atualizar" data-acao="atualizar" aria-label="Atualizar">${svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')}</button>
+      <button class="icone-btn" data-acao="ajustes" aria-label="Ajustes">${svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>')}</button>
+    </div>
+  </header>`;
+}
+const EXEMPLOS = ['gastei 45 no mercado', 'reunião sexta às 14h', 'pagar boleto da internet dia 10', 'dentista amanhã 9h30', 'comprei 120 de gasolina no pix'];
+function blocoRapido(){
+  const r = interpretar(rascunho, tipoForcado);
+  const previa = !rascunho.trim() ? 'Escreva do seu jeito: eu separo em demanda, gasto ou compromisso.'
+    : r ? (r.erro ? `<span class="erro">${esc(r.erro)}</span>` : `Vai salvar como ${r.resumo}`) : '';
+  const chips = [['', 'Automático'], ['demandas', 'Demanda'], ['gastos', 'Gasto'], ['compromissos', 'Compromisso']]
+    .map(([v, l]) => `<button type="button" class="tipo" data-acao="tipo" data-v="${v}" aria-pressed="${tipoForcado === v}">${l}</button>`).join('');
+  return `<section class="rapido" aria-label="Anotação rápida">
+    <div class="linha">
+      <input id="rapido" type="text" autocomplete="off" enterkeyhint="send" placeholder="Ex.: ${esc(EXEMPLOS[Math.floor(Date.now()/60000) % EXEMPLOS.length])}" value="${esc(rascunho)}" aria-label="Anotar rápido">
+      <button class="enviar" id="btn-enviar" data-acao="anotar" aria-label="Anotar" ${r && !r.erro ? '' : 'disabled'}>${svg('<path d="M5 12h14M13 6l6 6-6 6"/>')}</button>
+    </div>
+    <div class="previa" id="previa" aria-live="polite">${previa}</div>
+    <div class="tipos">${chips}</div>
+  </section>`;
+}
+
+function ordenaDemandas(l){
+  const peso = {Alta:0, 'Média':1, Baixa:2};
+  return [...l].sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999') || (peso[a.prioridade] ?? 1) - (peso[b.prioridade] ?? 1));
+}
+function linhaDemanda(d){
+  const atrasada = d.status !== 'feito' && d.prazo && d.prazo < hojeISO();
+  const meta = [d.prazo ? `<span class="${atrasada ? 'atrasado' : ''}">${atrasada ? 'atrasada · ' : ''}${rotuloData(d.prazo)}</span>` : 'sem prazo', `<span class="prio ${esc(d.prioridade)}"></span>${esc(d.prioridade || '')}`].join(' · ');
+  return `<li class="item ${d.status === 'feito' ? 'feito' : ''}">
+    <button class="check" data-acao="alternar" data-id="${esc(d.id)}" aria-label="Marcar como ${d.status === 'feito' ? 'pendente' : 'feita'}">${svg('<path d="M20 6L9 17l-5-5"/>')}</button>
+    <button class="corpo" data-acao="editar" data-tab="demandas" data-id="${esc(d.id)}"><span class="titulo">${esc(d.titulo)}</span><span class="meta">${meta}</span></button>
+  </li>`;
+}
+function linhaCompromisso(c, mostrarData){
+  const meta = [mostrarData ? rotuloData(c.data) : '', c.local ? esc(c.local) : ''].filter(Boolean).join(' · ');
+  return `<li class="item"><span class="hora">${esc(c.hora || 'dia todo').replace('dia todo', 'dia')}</span>
+    <button class="corpo" data-acao="editar" data-tab="compromissos" data-id="${esc(c.id)}"><span class="titulo">${esc(c.titulo)}</span>${meta ? `<span class="meta">${meta}</span>` : ''}</button></li>`;
+}
+function linhaGasto(g){
+  return `<li class="item"><button class="corpo" data-acao="editar" data-tab="gastos" data-id="${esc(g.id)}"><span class="titulo">${esc(g.descricao)}</span><span class="meta">${rotuloData(g.data)} · ${esc(g.categoria || 'Outros')}${g.pagamento ? ' · ' + esc(g.pagamento) : ''}</span></button><span class="valor">${brl(g.valor)}</span></li>`;
+}
+const soPendentes = () => dados.demandas.filter(d => d.status !== 'feito');
+const gastosDoMes = m => dados.gastos.filter(g => String(g.data).startsWith(m));
+const somaGastos = l => l.reduce((s, g) => s + Number(g.valor || 0), 0);
+
+function telaHoje(){
+  const h = hojeISO();
+  const prox = dados.compromissos.filter(c => c.data >= h).sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || ''))).slice(0, 5);
+  const urgentes = ordenaDemandas(soPendentes().filter(d => d.prazo && d.prazo <= h));
+  const semPrazo = soPendentes().filter(d => !d.prazo).length;
+  const totalMes = somaGastos(gastosDoMes(h.slice(0, 7)));
+  const totalHoje = somaGastos(dados.gastos.filter(g => g.data === h));
+  return `
+  <section class="secao" style="--cor:var(--age)"><h2>Próximos compromissos</h2>
+    <ul class="lista">${prox.length ? prox.map(c => linhaCompromisso(c, c.data !== h)).join('') : '<li class="vazio">Nada marcado. Experimente: “dentista amanhã 9h30”.</li>'}</ul></section>
+  <section class="secao" style="--cor:var(--dem)"><h2>Demandas para hoje</h2>
+    <ul class="lista">${urgentes.length ? urgentes.map(linhaDemanda).join('') : '<li class="vazio">Nenhuma demanda vence hoje.</li>'}</ul>
+    ${semPrazo ? `<p class="sub" style="margin-top:8px"><button class="link" data-acao="ir" data-v="demandas">${semPrazo} sem prazo definido</button></p>` : ''}</section>
+  <section class="secao" style="--cor:var(--gas)"><h2>Gastos</h2>
+    <p class="total">${brl(totalMes)}</p><p class="sub" style="margin-left:0">neste mês${totalHoje ? ` · ${brl(totalHoje)} hoje` : ''}. <button class="link" data-acao="ir" data-v="gastos">Ver detalhes</button></p></section>`;
+}
+function telaDemandas(){
+  const lista = ordenaDemandas(dados.demandas.filter(d => filtroDem === 'pendentes' ? d.status !== 'feito' : d.status === 'feito'));
+  return `<div class="filtros">${[['pendentes','Pendentes'],['feitas','Feitas']].map(([v, l]) => `<button class="filtro" data-acao="filtroDem" data-v="${v}" aria-pressed="${filtroDem === v}">${l}</button>`).join('')}</div>
+  <ul class="lista">${lista.length ? lista.map(linhaDemanda).join('') : `<li class="vazio">${filtroDem === 'pendentes' ? 'Tudo em dia. Anote uma nova demanda no campo acima.' : 'Nenhuma demanda concluída ainda.'}</li>`}</ul>`;
+}
+function telaGastos(){
+  const lista = gastosDoMes(mes).sort((a, b) => b.data.localeCompare(a.data));
+  const total = somaGastos(lista);
+  const porCat = {};
+  lista.forEach(g => { const c = g.categoria || 'Outros'; porCat[c] = (porCat[c] || 0) + Number(g.valor || 0); });
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  const nomeMes = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  return `<div class="mes"><button class="icone-btn" data-acao="mes" data-v="-1" aria-label="Mês anterior">${svg('<path d="M15 18l-6-6 6-6"/>')}</button>
+      <strong>${nomeMes}</strong>
+      <button class="icone-btn" data-acao="mes" data-v="1" aria-label="Próximo mês">${svg('<path d="M9 18l6-6-6-6"/>')}</button></div>
+    <p class="total">${brl(total)}</p><p class="sub" style="margin-left:0">${lista.length} ${lista.length === 1 ? 'lançamento' : 'lançamentos'}</p>
+    <div class="barras">${cats.map(([c, v]) => `<div class="barra"><div class="rot"><span>${esc(c)}</span><span>${brl(v)}</span></div><div class="trilho"><i style="width:${Math.max(3, v / cats[0][1] * 100)}%"></i></div></div>`).join('')}</div>
+    <ul class="lista" style="margin-top:14px">${lista.length ? lista.map(linhaGasto).join('') : '<li class="vazio">Sem gastos neste mês. Ex.: “gastei 45 no mercado”.</li>'}</ul>`;
+}
+function telaAgenda(){
+  const h = hojeISO();
+  const base = dados.compromissos.filter(c => filtroAge === 'proximos' ? c.data >= h : c.data < h);
+  base.sort((a, b) => { const r = (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')); return filtroAge === 'proximos' ? r : -r; });
+  const grupos = {};
+  base.forEach(c => (grupos[c.data] = grupos[c.data] || []).push(c));
+  return `<div class="filtros">${[['proximos','Próximos'],['passados','Passados']].map(([v, l]) => `<button class="filtro" data-acao="filtroAge" data-v="${v}" aria-pressed="${filtroAge === v}">${l}</button>`).join('')}</div>
+  ${Object.keys(grupos).length ? Object.entries(grupos).map(([d, l]) => `<p class="dia">${maiuscula(rotuloData(d))}${['hoje','amanhã','ontem'].includes(rotuloData(d)) ? ' · ' + daISO(d).toLocaleDateString('pt-BR', {day:'numeric', month:'short'}).replace('.', '') : ''}</p><ul class="lista">${l.map(c => linhaCompromisso(c, false)).join('')}</ul>`).join('')
+    : `<p class="vazio">${filtroAge === 'proximos' ? 'Agenda livre. Ex.: “reunião sexta às 14h”.' : 'Nenhum compromisso passado.'}</p>`}`;
+}
+function navegacao(){
+  return `<nav aria-label="Seções"><div class="inner">${NAV.map(n => `<button data-acao="ir" data-v="${n.id}" style="--cor:${n.cor}" ${tela === n.id ? 'aria-current="page"' : ''}>${svg(n.ic)}${n.rot}</button>`).join('')}</div></nav>
+  ${tela !== 'hoje' ? `<button class="fab" data-acao="novo" aria-label="Adicionar ${SCHEMA[tela].nome.toLowerCase()}">${svg('<path d="M12 5v14M5 12h14"/>')}</button>` : ''}`;
+}
+function desenhar(){
+  if (!cfg.url || !cfg.senha) return telaConfig(false);
+  const foco = document.activeElement && document.activeElement.id === 'rapido';
+  const pos = foco ? document.activeElement.selectionStart : 0;
+  const corpo = { hoje: telaHoje, demandas: telaDemandas, gastos: telaGastos, compromissos: telaAgenda }[tela]();
+  $('#app').innerHTML = cabecalho() + blocoRapido() + `<main>${corpo}</main>` + navegacao();
+  if (foco) { const i = $('#rapido'); i.focus(); i.setSelectionRange(pos, pos); }
+}
+
+/* ============ Formulário ============ */
+function abrirForm(tabela, item){
+  const sc = SCHEMA[tabela], v = item || {};
+  const campos = sc.campos.map(c => {
+    let val = v[c.k] !== undefined && v[c.k] !== '' ? v[c.k] : (c.pad === 'hoje' && !item ? hojeISO() : (item ? '' : (c.pad || '')));
+    if (c.t === 'select') {
+      const ops = c.op.map(o => Array.isArray(o) ? o : [o, o || '—']);
+      return `<label class="campo"><span>${c.l}</span><select name="${c.k}">${ops.map(([ov, ol]) => `<option value="${esc(ov)}" ${String(val) === String(ov) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select></label>`;
+    }
+    const tipo = c.t === 'num' ? 'text" inputmode="decimal' : c.t;
+    if (c.t === 'num' && val !== '') val = String(val).replace('.', ',');
+    return `<label class="campo"><span>${c.l}${c.obrig ? '' : ' (opcional)'}</span><input type="${tipo}" name="${c.k}" value="${esc(val)}" ${c.obrig ? 'required' : ''} autocomplete="off"></label>`;
+  }).join('');
+  $('#camada').innerHTML = `<div class="fundo" id="fundo"><form class="folha" id="form" role="dialog" aria-label="${item ? 'Editar' : 'Novo'} ${sc.nome.toLowerCase()}">
+    <h3>${item ? 'Editar' : 'Novo'} ${sc.nome.toLowerCase()}</h3>${campos}
+    <div class="botoes">${item ? '<button type="button" class="btn perigo" data-acao="excluir">Excluir</button>' : ''}<button type="button" class="btn" data-acao="fechar">Cancelar</button><button type="submit" class="btn principal">Salvar</button></div></form></div>`;
+  const f = $('#form');
+  f.dataset.tab = tabela; f.dataset.id = item ? item.id : '';
+  const primeiro = f.querySelector('input'); if (primeiro && !item) primeiro.focus();
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const novo = item ? { id: item.id } : {};
+    for (const c of sc.campos) {
+      let x = f.elements[c.k].value.trim();
+      if (c.t === 'num') { x = paraNumero(x); if (isNaN(x)) return aviso('Valor inválido', 'erro'); }
+      novo[c.k] = x;
+    }
+    const ok = await executar(item ? 'atualizar' : 'adicionar', tabela, novo, item ? 'Alterações salvas' : sc.nome + ' salvo');
+    if (ok) fechar();
+  });
+}
+const fechar = () => { $('#camada').innerHTML = ''; };
+
+/* ============ Ajustes / primeira configuração ============ */
+function telaConfig(podeVoltar){
+  $('#app').innerHTML = `<div class="config"><h1>Conectar à sua planilha</h1>
+    <p>Cole o endereço da API gerada no Google Apps Script e a senha definida no Code.gs. Isso é feito uma única vez neste aparelho.</p>
+    <form id="form-cfg">
+      <label class="campo"><span>Endereço da API (termina em /exec)</span><input name="url" type="url" required value="${esc(cfg.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label class="campo"><span>Senha</span><input name="senha" type="password" required value="${esc(cfg.senha)}" autocomplete="off"></label>
+      <div class="botoes">${podeVoltar ? '<button type="button" class="btn" data-acao="voltarCfg">Voltar</button>' : ''}<button class="btn principal" type="submit">Testar e salvar</button></div>
+    </form></div>`;
+  $('#form-cfg').addEventListener('submit', async e => {
+    e.preventDefault();
+    const nova = { url: e.target.url.value.trim(), senha: e.target.senha.value };
+    aviso('Testando conexão…', '', 0);
+    try {
+      dados = await chamar({ url: `${nova.url}?senha=${encodeURIComponent(nova.senha)}` });
+      cfg = nova; guarda.set('url', cfg.url); guarda.set('senha', cfg.senha); guarda.set('cache', JSON.stringify(dados));
+      statusSync = 'Sincronizado agora'; aviso('Conectado!'); desenhar();
+    } catch(err){ aviso(err.message, 'erro', 5000); }
+  });
+}
+
+/* ============ Eventos ============ */
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-acao]'); if (!el) return;
+  const a = el.dataset.acao, v = el.dataset.v;
+  if (a === 'ir') { tela = v; desenhar(); window.scrollTo(0, 0); }
+  else if (a === 'atualizar') carregar();
+  else if (a === 'ajustes') telaConfig(true);
+  else if (a === 'voltarCfg') desenhar();
+  else if (a === 'tipo') { tipoForcado = v; desenhar(); }
+  else if (a === 'filtroDem') { filtroDem = v; desenhar(); }
+  else if (a === 'filtroAge') { filtroAge = v; desenhar(); }
+  else if (a === 'mes') { const d = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1 + Number(v), 1); mes = iso(d).slice(0, 7); desenhar(); }
+  else if (a === 'novo') abrirForm(tela);
+  else if (a === 'fechar') fechar();
+  else if (a === 'editar') abrirForm(el.dataset.tab, dados[el.dataset.tab].find(x => String(x.id) === el.dataset.id));
+  else if (a === 'anotar') anotar();
+  else if (a === 'alternar') {
+    const d = dados.demandas.find(x => String(x.id) === el.dataset.id); if (!d || ocupado) return;
+    const antes = d.status; d.status = antes === 'feito' ? 'pendente' : 'feito'; desenhar();
+    try { ocupado = true; dados = await enviar('atualizar', 'demandas', { id: d.id, status: d.status }); guarda.set('cache', JSON.stringify(dados)); aviso(d.status === 'feito' ? 'Demanda concluída' : 'Demanda reaberta'); }
+    catch(err){ d.status = antes; aviso(err.message, 'erro', 4000); }
+    finally { ocupado = false; desenhar(); }
+  }
+  else if (a === 'excluir') {
+    const f = $('#form');
+    if (!confirm('Excluir este item? Isso também remove a linha da planilha.')) return;
+    if (await executar('excluir', f.dataset.tab, { id: f.dataset.id }, 'Excluído')) fechar();
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'rapido') return;
+  rascunho = e.target.value;
+  const r = interpretar(rascunho, tipoForcado);
+  $('#previa').innerHTML = !rascunho.trim() ? 'Escreva do seu jeito: eu separo em demanda, gasto ou compromisso.' : r ? (r.erro ? `<span class="erro">${esc(r.erro)}</span>` : `Vai salvar como ${r.resumo}`) : '';
+  $('#btn-enviar').disabled = !(r && !r.erro);
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'rapido' && e.key === 'Enter') { e.preventDefault(); anotar(); } if (e.key === 'Escape') fechar(); });
+document.addEventListener('mousedown', e => { if (e.target.id === 'fundo') fechar(); });
+
+async function anotar(){
+  const r = interpretar(rascunho, tipoForcado);
+  if (!r || r.erro) return aviso(r ? r.erro : 'Escreva algo primeiro', 'erro');
+  const ok = await executar('adicionar', r.tipo, r.item, r.tipo === 'gastos' ? 'Gasto anotado' : r.tipo === 'compromissos' ? 'Compromisso anotado' : 'Demanda anotada');
+  if (ok) { rascunho = ''; tipoForcado = ''; tela = r.tipo === 'demandas' && tela === 'hoje' ? 'hoje' : tela; desenhar(); }
+}
+
+/* ============ Início ============ */
+document.addEventListener('visibilitychange', () => { if (!document.hidden && cfg.url) carregar(true); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+desenhar();
+carregar(true);
+</script>
+</body>
+</html>
