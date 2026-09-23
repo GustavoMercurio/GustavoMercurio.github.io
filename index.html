@@ -312,7 +312,7 @@ function acharData(txt){
   if ((m = t.match(/\bamanha\b/)))           return { iso: iso(somaDias(hoje, 1)), re: m[0] };
   if ((m = t.match(/\bontem\b/)))            return { iso: iso(somaDias(hoje, -1)), re: m[0] };
   if ((m = t.match(/\bhoje\b/)))             return { iso: iso(hoje), re: m[0] };
-  if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
+  if ((m = t.match(/\b(?:dia\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
     let ano = m[3] ? Number(m[3]) : hoje.getFullYear();
     if (ano < 100) ano += 2000;
     let d = new Date(ano, Number(m[2]) - 1, Number(m[1]));
@@ -360,6 +360,12 @@ function acharPagamento(txt){
   if (/\b(dinheiro|especie)\b/.test(t)) return 'Dinheiro';
   return '';
 }
+function acharLocal(txt){
+  // Marcação explícita, tipo "@DVA" ou "@Oficina-Central" (sem espaço dentro do nome).
+  const m = txt.match(/@([^\s,]+)/);
+  if (!m) return null;
+  return { local: m[1].replace(/[.,;:]+$/, ''), re: m[0] };
+}
 
 function interpretar(entrada, forcar){
   let txt = entrada.trim();
@@ -371,6 +377,7 @@ function interpretar(entrada, forcar){
   }
   const data = acharData(txt);
   const hora = acharHora(txt);
+  const local = acharLocal(txt);
   let valor = acharValor(txt);
   if (!valor && forcar === 'gastos') {                      // "gasto: 30 farmácia" (número solto)
     const base = data ? cortar(txt, new RegExp(data.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))) : txt;
@@ -393,16 +400,16 @@ function interpretar(entrada, forcar){
     const item = { descricao: maiuscula(descricao), valor: valor.valor, categoria, data: data ? data.iso : hojeISO(), pagamento: acharPagamento(txt) };
     return { tipo, item, resumo: `<b>Gasto</b> · ${brl(item.valor)} · ${esc(item.categoria)} · ${rotuloData(item.data)}` };
   }
-  [data, hora].forEach(x => { if (x) resto = cortar(resto, new RegExp(x.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); });
+  [data, hora, local].forEach(x => { if (x) resto = cortar(resto, new RegExp(x.re.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')); });
   if (tipo === 'compromissos') {
     const titulo = limpar(resto) || 'Compromisso';
-    const item = { titulo: maiuscula(titulo), data: data ? data.iso : hojeISO(), hora: hora ? hora.hora : '', local: '', lembrete_min: '30' };
-    return { tipo, item, resumo: `<b>Compromisso</b> · ${rotuloData(item.data)}${item.hora ? ' às ' + item.hora : ''}` };
+    const item = { titulo: maiuscula(titulo), data: data ? data.iso : hojeISO(), hora: hora ? hora.hora : '', local: local ? local.local : '', lembrete_min: '30' };
+    return { tipo, item, resumo: `<b>Compromisso</b> · ${rotuloData(item.data)}${item.hora ? ' às ' + item.hora : ''}${item.local ? ' · ' + esc(item.local) : ''}` };
   }
   const prioridade = /\b(urgente|importante|prioridade)\b/.test(t) ? 'Alta' : 'Média';
   const titulo = limpar(resto.replace(/\b(urgente)\b/ig, ' ')) || limpar(resto) || 'Nova demanda';
-  const item = { titulo: maiuscula(titulo), prazo: data ? data.iso : '', prioridade };
-  return { tipo, item, resumo: `<b>Demanda</b> · prioridade ${prioridade.toLowerCase()}${item.prazo ? ' · prazo ' + rotuloData(item.prazo) : ''}` };
+  const item = { titulo: maiuscula(titulo), prazo: data ? data.iso : '', prioridade, local: local ? local.local : '' };
+  return { tipo, item, resumo: `<b>Demanda</b> · prioridade ${prioridade.toLowerCase()}${item.local ? ' · ' + esc(item.local) : ''}${item.prazo ? ' · prazo ' + rotuloData(item.prazo) : ''}` };
 }
 
 /* ============ Desenho das telas ============ */
@@ -595,7 +602,7 @@ function abrirForm(tabela, item){
       novo[c.k] = x;
     }
     const ok = await executar(item ? 'atualizar' : 'adicionar', tabela, novo, item ? 'Alterações salvas' : sc.nome + ' salvo');
-    if (ok) fechar();
+    if (ok) { if (tabela === 'demandas') quadroDemanda = (novo.local || '').trim() || 'Sem local'; fechar(); }
   });
 }
 const fechar = () => { $('#camada').innerHTML = ''; };
@@ -666,7 +673,10 @@ async function anotar(){
   const r = interpretar(rascunho, tipoForcado);
   if (!r || r.erro) return aviso(r ? r.erro : 'Escreva algo primeiro', 'erro');
   const ok = await executar('adicionar', r.tipo, r.item, r.tipo === 'gastos' ? 'Gasto anotado' : r.tipo === 'compromissos' ? 'Compromisso anotado' : 'Demanda anotada');
-  if (ok) { rascunho = ''; tipoForcado = ''; tela = r.tipo === 'demandas' && tela === 'hoje' ? 'hoje' : tela; desenhar(); }
+  if (ok) {
+    if (r.tipo === 'demandas') quadroDemanda = (r.item.local || '').trim() || 'Sem local';
+    rascunho = ''; tipoForcado = ''; desenhar();
+  }
 }
 
 /* ============ Início ============ */
