@@ -88,6 +88,10 @@ button{cursor:pointer}
 .mes{display:flex;align-items:center;gap:10px;margin-top:20px}
 .mes strong{font:700 20px var(--display);flex:1;text-transform:capitalize}
 .filtros{display:flex;gap:6px;margin:20px 0 4px}
+.quadros{display:flex;gap:6px;margin:12px 0 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.quadros::-webkit-scrollbar{display:none}
+.quadro-tab{flex:none;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;white-space:nowrap}
+.quadro-tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .filtro{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font-size:14px}
 .filtro[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .dia{margin:22px 0 2px;font:700 15px var(--display);color:var(--muted)}
@@ -169,6 +173,12 @@ function rotuloData(s){
   if (s === iso(somaDias(new Date(), -1))) return 'ontem';
   return daISO(s).toLocaleDateString('pt-BR', {weekday:'short', day:'numeric', month:'short'}).replace('.', '').replace('.', '');
 }
+function fmtDataHora(s){
+  if (!s) return '';
+  const [d, h] = String(s).split(' ');
+  const rot = rotuloData(d);
+  return h ? `${rot} às ${h}` : rot;
+}
 function paraNumero(t){
   t = String(t).trim().replace(/[^\d.,]/g, '');
   if (!t) return NaN;
@@ -185,6 +195,7 @@ const LEMBRETES = [['0','Sem lembrete'],['10','10 min antes'],['30','30 min ante
 const SCHEMA = {
   demandas: { nome:'Demanda', campos:[
     {k:'titulo', l:'O que precisa ser feito', t:'text', obrig:true},
+    {k:'local', l:'Local', t:'text'},
     {k:'prazo', l:'Prazo', t:'date'},
     {k:'prioridade', l:'Prioridade', t:'select', op:['Baixa','Média','Alta'], pad:'Média'} ]},
   gastos: { nome:'Gasto', campos:[
@@ -214,6 +225,7 @@ try { dados = JSON.parse(guarda.get('cache')) || dados; } catch(e){}
 let tela = 'hoje';
 let mes = hojeISO().slice(0, 7);
 let filtroDem = 'pendentes';
+let quadroDemanda = null;
 let filtroAge = 'proximos';
 let ocupado = false;
 let statusSync = '';
@@ -430,7 +442,9 @@ function ordenaDemandas(l){
 }
 function linhaDemanda(d){
   const atrasada = d.status !== 'feito' && d.prazo && d.prazo < hojeISO();
-  const meta = [d.prazo ? `<span class="${atrasada ? 'atrasado' : ''}">${atrasada ? 'atrasada · ' : ''}${rotuloData(d.prazo)}</span>` : 'sem prazo', `<span class="prio ${esc(d.prioridade)}"></span>${esc(d.prioridade || '')}`].join(' · ');
+  const meta = d.status === 'feito'
+    ? (d.concluido_em ? `Concluída ${fmtDataHora(d.concluido_em)}` : 'Concluída')
+    : [d.prazo ? `<span class="${atrasada ? 'atrasado' : ''}">${atrasada ? 'atrasada · ' : ''}${rotuloData(d.prazo)}</span>` : 'sem prazo', `<span class="prio ${esc(d.prioridade)}"></span>${esc(d.prioridade || '')}`].join(' · ');
   return `<li class="item ${d.status === 'feito' ? 'feito' : ''}">
     <button class="check" data-acao="alternar" data-id="${esc(d.id)}" aria-label="Marcar como ${d.status === 'feito' ? 'pendente' : 'feita'}">${svg('<path d="M20 6L9 17l-5-5"/>')}</button>
     <button class="corpo" data-acao="editar" data-tab="demandas" data-id="${esc(d.id)}"><span class="titulo">${esc(d.titulo)}</span><span class="meta">${meta}</span></button>
@@ -465,9 +479,20 @@ function telaHoje(){
     <p class="total">${brl(totalMes)}</p><p class="sub" style="margin-left:0">neste mês${totalHoje ? ` · ${brl(totalHoje)} hoje` : ''}. <button class="link" data-acao="ir" data-v="gastos">Ver detalhes</button></p></section>`;
 }
 function telaDemandas(){
-  const lista = ordenaDemandas(dados.demandas.filter(d => filtroDem === 'pendentes' ? d.status !== 'feito' : d.status === 'feito'));
-  return `<div class="filtros">${[['pendentes','Pendentes'],['feitas','Feitas']].map(([v, l]) => `<button class="filtro" data-acao="filtroDem" data-v="${v}" aria-pressed="${filtroDem === v}">${l}</button>`).join('')}</div>
-  <ul class="lista">${lista.length ? lista.map(linhaDemanda).join('') : `<li class="vazio">${filtroDem === 'pendentes' ? 'Tudo em dia. Anote uma nova demanda no campo acima.' : 'Nenhuma demanda concluída ainda.'}</li>`}</ul>`;
+  const base = dados.demandas.filter(d => filtroDem === 'pendentes' ? d.status !== 'feito' : d.status === 'feito');
+  const grupos = {};
+  base.forEach(d => { const loc = (d.local || '').trim() || 'Sem local'; (grupos[loc] = grupos[loc] || []).push(d); });
+  const locais = Object.keys(grupos).sort((a, b) => grupos[b].length - grupos[a].length || a.localeCompare(b, 'pt-BR'));
+  if (!locais.length) locais.push('Sem local');
+  if (!quadroDemanda || locais.indexOf(quadroDemanda) < 0) quadroDemanda = locais[0];
+  const lista = ordenaDemandas(grupos[quadroDemanda] || []);
+
+  const filtros = `<div class="filtros">${[['pendentes','Pendentes'],['feitas','Feitas']].map(([v, l]) => `<button class="filtro" data-acao="filtroDem" data-v="${v}" aria-pressed="${filtroDem === v}">${l}</button>`).join('')}</div>`;
+  const abas = `<div class="quadros">${locais.map(loc => `<button class="quadro-tab" data-acao="quadro" data-v="${esc(loc)}" aria-pressed="${loc === quadroDemanda}">${esc(loc)} (${grupos[loc].length})</button>`).join('')}</div>`;
+  const corpo = lista.length
+    ? `<ul class="lista">${lista.map(linhaDemanda).join('')}</ul>`
+    : `<p class="vazio">${filtroDem === 'pendentes' ? 'Nada pendente neste local.' : 'Nada concluído neste local ainda.'}</p>`;
+  return filtros + abas + corpo;
 }
 function telaGastos(){
   const lista = gastosDoMes(mes).sort((a, b) => b.data.localeCompare(a.data));
@@ -607,6 +632,7 @@ document.addEventListener('click', async e => {
   else if (a === 'voltarCfg') desenhar();
   else if (a === 'tipo') { tipoForcado = v; desenhar(); }
   else if (a === 'filtroDem') { filtroDem = v; desenhar(); }
+  else if (a === 'quadro') { quadroDemanda = v; desenhar(); }
   else if (a === 'filtroAge') { filtroAge = v; desenhar(); }
   else if (a === 'mes') { const d = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1 + Number(v), 1); mes = iso(d).slice(0, 7); desenhar(); }
   else if (a === 'novo') abrirForm(tela);
