@@ -116,6 +116,17 @@ nav button[aria-current="page"]{color:var(--cor);font-weight:600}
 .btn.perigo{color:var(--danger);flex:0 0 auto;padding:0 16px}
 .btn:disabled{opacity:.5}
 
+/* Busca */
+.folha-busca{padding-top:calc(14px + env(safe-area-inset-top))}
+.busca-linha{display:flex;align-items:center;gap:10px;border:2px solid var(--ink);border-radius:14px;padding:4px 6px 4px 14px;margin-bottom:16px}
+.busca-linha svg{width:19px;height:19px;color:var(--muted);flex:none}
+.busca-linha input{flex:1;min-width:0;border:0;background:transparent;font-size:17px;padding:9px 4px;outline:none}
+.busca-fechar{width:36px;height:36px;border-radius:50%;border:0;background:var(--paper);display:grid;place-items:center;flex:none}
+.busca-fechar svg{width:16px;height:16px}
+.busca-grupo{margin-bottom:18px}
+.busca-grupo h4{margin:0 0 4px;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.busca-vazio{color:var(--muted);padding:20px 2px;font-size:14.5px}
+
 /* Aviso */
 .aviso{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:90vw;text-align:center}
 .aviso.erro{background:var(--danger);color:#fff}
@@ -390,6 +401,7 @@ function cabecalho(){
   return `<header class="topo">
     <div><h1>${maiuscula(titulo)}</h1><small>${sub} · ${esc(statusSync || 'Toque em atualizar para sincronizar')}</small></div>
     <div class="acoes">
+      <button class="icone-btn" data-acao="buscar" aria-label="Buscar">${svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>')}</button>
       <button class="icone-btn" id="btn-atualizar" data-acao="atualizar" aria-label="Atualizar">${svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')}</button>
       <button class="icone-btn" data-acao="ajustes" aria-label="Ajustes">${svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>')}</button>
     </div>
@@ -481,6 +493,42 @@ function telaAgenda(){
   ${Object.keys(grupos).length ? Object.entries(grupos).map(([d, l]) => `<p class="dia">${maiuscula(rotuloData(d))}${['hoje','amanhã','ontem'].includes(rotuloData(d)) ? ' · ' + daISO(d).toLocaleDateString('pt-BR', {day:'numeric', month:'short'}).replace('.', '') : ''}</p><ul class="lista">${l.map(c => linhaCompromisso(c, false)).join('')}</ul>`).join('')
     : `<p class="vazio">${filtroAge === 'proximos' ? 'Agenda livre. Ex.: “reunião sexta às 14h”.' : 'Nenhum compromisso passado.'}</p>`}`;
 }
+/* ============ Busca ============ */
+function contemTermo(texto, termo){ return norm(String(texto || '')).includes(termo); }
+function buscarTudo(q){
+  const termo = norm(q.trim());
+  if (!termo) return { demandas: [], gastos: [], compromissos: [] };
+  return {
+    demandas: ordenaDemandas(dados.demandas.filter(d => contemTermo(d.titulo, termo) || contemTermo(d.prioridade, termo))),
+    gastos: dados.gastos.filter(g => contemTermo(g.descricao, termo) || contemTermo(g.categoria, termo) || contemTermo(g.pagamento, termo) || contemTermo(brl(g.valor), termo)).sort((a, b) => b.data.localeCompare(a.data)),
+    compromissos: dados.compromissos.filter(c => contemTermo(c.titulo, termo) || contemTermo(c.local, termo)).sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')))
+  };
+}
+function abrirBusca(){
+  $('#camada').innerHTML = `<div class="fundo" id="fundo" style="align-items:flex-start"><div class="folha folha-busca" role="dialog" aria-label="Buscar">
+    <div class="busca-linha">${svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>')}
+      <input id="busca-campo" type="text" autocomplete="off" enterkeyhint="search" placeholder="Buscar demandas, gastos, compromissos…" aria-label="Buscar">
+      <button class="busca-fechar" type="button" data-acao="fechar" aria-label="Fechar busca">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>
+    </div>
+    <div id="busca-resultados"></div>
+  </div></div>`;
+  $('#busca-campo').focus();
+  $('#busca-campo').addEventListener('input', e => desenharResultadosBusca(e.target.value));
+  desenharResultadosBusca('');
+}
+function desenharResultadosBusca(q){
+  const alvo = $('#busca-resultados'); if (!alvo) return;
+  if (!q.trim()) { alvo.innerHTML = '<p class="busca-vazio">Digite para buscar em tudo o que você já anotou.</p>'; return; }
+  const r = buscarTudo(q);
+  const total = r.demandas.length + r.gastos.length + r.compromissos.length;
+  if (!total) { alvo.innerHTML = '<p class="busca-vazio">Nada encontrado.</p>'; return; }
+  alvo.innerHTML = [
+    r.compromissos.length ? `<div class="busca-grupo"><h4>Compromissos</h4><ul class="lista">${r.compromissos.map(c => linhaCompromisso(c, true)).join('')}</ul></div>` : '',
+    r.demandas.length ? `<div class="busca-grupo"><h4>Demandas</h4><ul class="lista">${r.demandas.map(linhaDemanda).join('')}</ul></div>` : '',
+    r.gastos.length ? `<div class="busca-grupo"><h4>Gastos</h4><ul class="lista">${r.gastos.map(linhaGasto).join('')}</ul></div>` : ''
+  ].join('');
+}
+
 function navegacao(){
   return `<nav aria-label="Seções"><div class="inner">${NAV.map(n => `<button data-acao="ir" data-v="${n.id}" style="--cor:${n.cor}" ${tela === n.id ? 'aria-current="page"' : ''}>${svg(n.ic)}${n.rot}</button>`).join('')}</div></nav>
   ${tela !== 'hoje' ? `<button class="fab" data-acao="novo" aria-label="Adicionar ${SCHEMA[tela].nome.toLowerCase()}">${svg('<path d="M12 5v14M5 12h14"/>')}</button>` : ''}`;
@@ -553,6 +601,7 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-acao]'); if (!el) return;
   const a = el.dataset.acao, v = el.dataset.v;
   if (a === 'ir') { tela = v; desenhar(); window.scrollTo(0, 0); }
+  else if (a === 'buscar') abrirBusca();
   else if (a === 'atualizar') carregar();
   else if (a === 'ajustes') telaConfig(true);
   else if (a === 'voltarCfg') desenhar();
