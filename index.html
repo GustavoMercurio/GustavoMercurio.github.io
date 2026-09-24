@@ -88,8 +88,12 @@ button{cursor:pointer}
 .mes{display:flex;align-items:center;gap:10px;margin-top:20px}
 .mes strong{font:700 20px var(--display);flex:1;text-transform:capitalize}
 .filtros{display:flex;gap:6px;margin:20px 0 4px}
-.quadros{display:flex;gap:6px;margin:12px 0 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.quadros-wrap{display:flex;align-items:center;gap:4px;margin:12px 0 4px}
+.quadros{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .quadros::-webkit-scrollbar{display:none}
+.quadro-seta{flex:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.quadro-seta svg{width:16px;height:16px}
+.quadro-seta:disabled{opacity:.3}
 .quadro-tab{flex:none;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;white-space:nowrap}
 .quadro-tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .filtro{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font-size:14px}
@@ -495,7 +499,11 @@ function telaDemandas(){
   const lista = ordenaDemandas(grupos[quadroDemanda] || []);
 
   const filtros = `<div class="filtros">${[['pendentes','Pendentes'],['feitas','Feitas']].map(([v, l]) => `<button class="filtro" data-acao="filtroDem" data-v="${v}" aria-pressed="${filtroDem === v}">${l}</button>`).join('')}</div>`;
-  const abas = `<div class="quadros">${locais.map(loc => `<button class="quadro-tab" data-acao="quadro" data-v="${esc(loc)}" aria-pressed="${loc === quadroDemanda}">${esc(loc)} (${grupos[loc].length})</button>`).join('')}</div>`;
+  const abas = `<div class="quadros-wrap">
+    <button class="quadro-seta" data-acao="rolarQuadro" data-v="-1" aria-label="Locais anteriores">${svg('<path d="M15 18l-6-6 6-6"/>')}</button>
+    <div class="quadros" id="quadros-scroll">${locais.map(loc => `<button class="quadro-tab" data-acao="quadro" data-v="${esc(loc)}" aria-pressed="${loc === quadroDemanda}">${esc(loc)} (${grupos[loc].length})</button>`).join('')}</div>
+    <button class="quadro-seta" data-acao="rolarQuadro" data-v="1" aria-label="Mais locais">${svg('<path d="M9 18l6-6-6-6"/>')}</button>
+  </div>`;
   const corpo = lista.length
     ? `<ul class="lista">${lista.map(linhaDemanda).join('')}</ul>`
     : `<p class="vazio">${filtroDem === 'pendentes' ? 'Nada pendente neste local.' : 'Nada concluído neste local ainda.'}</p>`;
@@ -571,6 +579,10 @@ function desenhar(){
   const pos = foco ? document.activeElement.selectionStart : 0;
   const corpo = { hoje: telaHoje, demandas: telaDemandas, gastos: telaGastos, compromissos: telaAgenda }[tela]();
   $('#app').innerHTML = cabecalho() + blocoRapido() + `<main>${corpo}</main>` + navegacao();
+  if (tela === 'demandas') {
+    const ativa = $('.quadro-tab[aria-pressed="true"]');
+    if (ativa) ativa.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
   if (foco) { const i = $('#rapido'); i.focus(); i.setSelectionRange(pos, pos); }
 }
 
@@ -640,6 +652,7 @@ document.addEventListener('click', async e => {
   else if (a === 'tipo') { tipoForcado = v; desenhar(); }
   else if (a === 'filtroDem') { filtroDem = v; desenhar(); }
   else if (a === 'quadro') { quadroDemanda = v; desenhar(); }
+  else if (a === 'rolarQuadro') { const el = $('#quadros-scroll'); if (el) el.scrollBy({ left: 130 * Number(v), behavior: 'smooth' }); }
   else if (a === 'filtroAge') { filtroAge = v; desenhar(); }
   else if (a === 'mes') { const d = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1 + Number(v), 1); mes = iso(d).slice(0, 7); desenhar(); }
   else if (a === 'novo') abrirForm(tela);
