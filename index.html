@@ -59,6 +59,14 @@ button{cursor:pointer}
 
 /* Seções e listas */
 .secao{margin-top:28px}
+.colunas-dias{display:flex;gap:10px;margin-top:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+.colunas-dias::-webkit-scrollbar{display:none}
+.coluna-dia{flex:0 0 82%;max-width:280px;scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.coluna-dia h3{margin:0 0 6px;font:700 15px var(--display);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.coluna-dia h3 span{font:600 12px var(--body);color:var(--muted);background:var(--paper);border-radius:999px;padding:2px 9px}
+.coluna-dia .lista{max-height:none}
+.coluna-dia .vazio{padding:8px 0;font-size:13.5px}
+@media (min-width:600px){.coluna-dia{flex:1 1 0;max-width:none}}
 .secao h2{display:flex;align-items:center;gap:8px;margin:0 0 4px;font:700 19px/1.2 var(--display);letter-spacing:-.01em}
 .secao h2::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--cor,var(--ink))}
 .secao .sub{color:var(--muted);font-size:14px;margin:0 0 6px 18px}
@@ -89,6 +97,11 @@ button{cursor:pointer}
 .mes strong{font:700 20px var(--display);flex:1;text-transform:capitalize}
 .filtros{display:flex;gap:6px;margin:20px 0 4px}
 .quadros-wrap{display:flex;align-items:center;gap:4px;margin:12px 0 4px}
+.busca-local{position:relative;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface);color:var(--muted)}
+.busca-local input{flex:1;min-width:0;border:0;background:transparent;font-size:14.5px;color:var(--ink);outline:none;padding:0}
+.busca-local input::placeholder{color:var(--muted)}
+.busca-local button{border:0;background:none;color:var(--muted);flex:none;display:grid;place-items:center;width:20px;height:20px}
+.busca-local svg{flex:none}
 .quadros{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .quadros::-webkit-scrollbar{display:none}
 .quadro-seta{flex:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
@@ -230,6 +243,7 @@ let tela = 'hoje';
 let mes = hojeISO().slice(0, 7);
 let filtroDem = 'pendentes';
 let quadroDemanda = null;
+let buscaLocal = '';
 let filtroAge = 'proximos';
 let ocupado = false;
 let statusSync = '';
@@ -475,16 +489,23 @@ const somaGastos = l => l.reduce((s, g) => s + Number(g.valor || 0), 0);
 
 function telaHoje(){
   const h = hojeISO();
+  const amanhaISO = iso(somaDias(new Date(), 1));
+  const depoisISO = iso(somaDias(new Date(), 2));
   const prox = dados.compromissos.filter(c => c.data >= h).sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || ''))).slice(0, 5);
-  const urgentes = ordenaDemandas(soPendentes().filter(d => d.prazo && d.prazo <= h));
-  const semPrazo = soPendentes().filter(d => !d.prazo).length;
+  const pendentes = soPendentes();
+  const colHoje = ordenaDemandas(pendentes.filter(d => d.prazo && d.prazo <= h));
+  const colAmanha = ordenaDemandas(pendentes.filter(d => d.prazo === amanhaISO));
+  const colDepois = ordenaDemandas(pendentes.filter(d => d.prazo === depoisISO));
+  const semPrazo = pendentes.filter(d => !d.prazo).length;
   const totalMes = somaGastos(gastosDoMes(h.slice(0, 7)));
   const totalHoje = somaGastos(dados.gastos.filter(g => g.data === h));
+  const coluna = (titulo, lista) => `<div class="coluna-dia"><h3>${titulo}<span>${lista.length}</span></h3>
+    <ul class="lista">${lista.length ? lista.map(linhaDemanda).join('') : '<li class="vazio">Nada por aqui.</li>'}</ul></div>`;
   return `
   <section class="secao" style="--cor:var(--age)"><h2>Próximos compromissos</h2>
     <ul class="lista">${prox.length ? prox.map(c => linhaCompromisso(c, c.data !== h)).join('') : '<li class="vazio">Nada marcado. Experimente: “dentista amanhã 9h30”.</li>'}</ul></section>
-  <section class="secao" style="--cor:var(--dem)"><h2>Demandas para hoje</h2>
-    <ul class="lista">${urgentes.length ? urgentes.map(linhaDemanda).join('') : '<li class="vazio">Nenhuma demanda vence hoje.</li>'}</ul>
+  <section class="secao" style="--cor:var(--dem)"><h2>Demandas dos próximos dias</h2>
+    <div class="colunas-dias">${coluna('Hoje', colHoje)}${coluna('Amanhã', colAmanha)}${coluna('Depois de amanhã', colDepois)}</div>
     ${semPrazo ? `<p class="sub" style="margin-top:8px"><button class="link" data-acao="ir" data-v="demandas">${semPrazo} sem prazo definido</button></p>` : ''}</section>
   <section class="secao" style="--cor:var(--gas)"><h2>Gastos</h2>
     <p class="total">${brl(totalMes)}</p><p class="sub" style="margin-left:0">neste mês${totalHoje ? ` · ${brl(totalHoje)} hoje` : ''}. <button class="link" data-acao="ir" data-v="gastos">Ver detalhes</button></p></section>`;
@@ -493,21 +514,26 @@ function telaDemandas(){
   const base = dados.demandas.filter(d => filtroDem === 'pendentes' ? d.status !== 'feito' : d.status === 'feito');
   const grupos = {};
   base.forEach(d => { const loc = (d.local || '').trim() || 'Sem local'; (grupos[loc] = grupos[loc] || []).push(d); });
-  const locais = Object.keys(grupos).sort((a, b) => grupos[b].length - grupos[a].length || a.localeCompare(b, 'pt-BR'));
-  if (!locais.length) locais.push('Sem local');
-  if (!quadroDemanda || locais.indexOf(quadroDemanda) < 0) quadroDemanda = locais[0];
-  const lista = ordenaDemandas(grupos[quadroDemanda] || []);
+  const todosLocais = Object.keys(grupos).sort((a, b) => grupos[b].length - grupos[a].length || a.localeCompare(b, 'pt-BR'));
+  if (!todosLocais.length) todosLocais.push('Sem local');
+  const locais = buscaLocal.trim() ? todosLocais.filter(loc => contemTermo(loc, norm(buscaLocal))) : todosLocais;
+  if (!quadroDemanda || locais.indexOf(quadroDemanda) < 0) quadroDemanda = locais[0] || null;
+  const lista = quadroDemanda ? ordenaDemandas(grupos[quadroDemanda] || []) : [];
 
   const filtros = `<div class="filtros">${[['pendentes','Pendentes'],['feitas','Feitas']].map(([v, l]) => `<button class="filtro" data-acao="filtroDem" data-v="${v}" aria-pressed="${filtroDem === v}">${l}</button>`).join('')}</div>`;
-  const abas = `<div class="quadros-wrap">
+  const buscaBar = `<div class="busca-local">${svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>', 'style="width:15px;height:15px"')}
+    <input id="busca-local-campo" type="text" value="${esc(buscaLocal)}" placeholder="Buscar local…" autocomplete="off">
+    ${buscaLocal ? `<button type="button" data-acao="limparBuscaLocal" aria-label="Limpar busca">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>` : ''}
+  </div>`;
+  const abas = locais.length ? `<div class="quadros-wrap">
     <button class="quadro-seta" data-acao="rolarQuadro" data-v="-1" aria-label="Locais anteriores">${svg('<path d="M15 18l-6-6 6-6"/>')}</button>
     <div class="quadros" id="quadros-scroll">${locais.map(loc => `<button class="quadro-tab" data-acao="quadro" data-v="${esc(loc)}" aria-pressed="${loc === quadroDemanda}">${esc(loc)} (${grupos[loc].length})</button>`).join('')}</div>
     <button class="quadro-seta" data-acao="rolarQuadro" data-v="1" aria-label="Mais locais">${svg('<path d="M9 18l6-6-6-6"/>')}</button>
-  </div>`;
+  </div>` : `<p class="vazio">Nenhum local encontrado para "${esc(buscaLocal)}".</p>`;
   const corpo = lista.length
     ? `<ul class="lista">${lista.map(linhaDemanda).join('')}</ul>`
     : `<p class="vazio">${filtroDem === 'pendentes' ? 'Nada pendente neste local.' : 'Nada concluído neste local ainda.'}</p>`;
-  return filtros + abas + corpo;
+  return filtros + buscaBar + abas + corpo;
 }
 function telaGastos(){
   const lista = gastosDoMes(mes).sort((a, b) => b.data.localeCompare(a.data));
@@ -539,7 +565,7 @@ function buscarTudo(q){
   const termo = norm(q.trim());
   if (!termo) return { demandas: [], gastos: [], compromissos: [] };
   return {
-    demandas: ordenaDemandas(dados.demandas.filter(d => contemTermo(d.titulo, termo) || contemTermo(d.prioridade, termo))),
+    demandas: ordenaDemandas(dados.demandas.filter(d => contemTermo(d.titulo, termo) || contemTermo(d.prioridade, termo) || contemTermo(d.local, termo))),
     gastos: dados.gastos.filter(g => contemTermo(g.descricao, termo) || contemTermo(g.categoria, termo) || contemTermo(g.pagamento, termo) || contemTermo(brl(g.valor), termo)).sort((a, b) => b.data.localeCompare(a.data)),
     compromissos: dados.compromissos.filter(c => contemTermo(c.titulo, termo) || contemTermo(c.local, termo)).sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')))
   };
@@ -575,15 +601,16 @@ function navegacao(){
 }
 function desenhar(){
   if (!cfg.url || !cfg.senha) return telaConfig(false);
-  const foco = document.activeElement && document.activeElement.id === 'rapido';
+  const idsComFoco = ['rapido', 'busca-local-campo'];
+  const foco = document.activeElement && idsComFoco.indexOf(document.activeElement.id) >= 0 ? document.activeElement.id : null;
   const pos = foco ? document.activeElement.selectionStart : 0;
   const corpo = { hoje: telaHoje, demandas: telaDemandas, gastos: telaGastos, compromissos: telaAgenda }[tela]();
   $('#app').innerHTML = cabecalho() + blocoRapido() + `<main>${corpo}</main>` + navegacao();
-  if (tela === 'demandas') {
+  if (tela === 'demandas' && !foco) {
     const ativa = $('.quadro-tab[aria-pressed="true"]');
     if (ativa) ativa.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
-  if (foco) { const i = $('#rapido'); i.focus(); i.setSelectionRange(pos, pos); }
+  if (foco) { const i = $('#' + foco); if (i) { i.focus(); i.setSelectionRange(pos, pos); } }
 }
 
 /* ============ Formulário ============ */
@@ -652,6 +679,7 @@ document.addEventListener('click', async e => {
   else if (a === 'tipo') { tipoForcado = v; desenhar(); }
   else if (a === 'filtroDem') { filtroDem = v; desenhar(); }
   else if (a === 'quadro') { quadroDemanda = v; desenhar(); }
+  else if (a === 'limparBuscaLocal') { buscaLocal = ''; quadroDemanda = null; desenhar(); }
   else if (a === 'rolarQuadro') { const el = $('#quadros-scroll'); if (el) el.scrollBy({ left: 130 * Number(v), behavior: 'smooth' }); }
   else if (a === 'filtroAge') { filtroAge = v; desenhar(); }
   else if (a === 'mes') { const d = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5)) - 1 + Number(v), 1); mes = iso(d).slice(0, 7); desenhar(); }
@@ -673,6 +701,7 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('input', e => {
+  if (e.target.id === 'busca-local-campo') { buscaLocal = e.target.value; quadroDemanda = null; desenhar(); return; }
   if (e.target.id !== 'rapido') return;
   rascunho = e.target.value;
   const r = interpretar(rascunho, tipoForcado);
